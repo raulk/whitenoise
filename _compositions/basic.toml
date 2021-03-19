@@ -1,0 +1,23 @@
+[metadata]
+  name = "basic"
+
+[global]
+  plan = "whitenoise"
+  case = "transfer"
+  total_instances = 2
+  builder = "exec:go"
+  runner = "local:exec"
+
+  [global.run]
+  profiles = { cpu = "true", heap = "5s" }
+
+[[groups]]
+  id = "sender"
+  instances = { count = 1 }
+  [groups.run.test_params]
+    size = "4GiB"
+
+[[groups]]
+  id = "receiver"
+  instances = { count = 1 }
+

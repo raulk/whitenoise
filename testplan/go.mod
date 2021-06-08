@@ -5,10 +5,9 @@ go 1.15
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/filecoin-project/go-commp-utils v0.0.0-20201119054358-b88f7a96a434
-	github.com/filecoin-project/go-data-transfer v1.2.7
-	github.com/filecoin-project/go-fil-markets v1.1.9
+	github.com/filecoin-project/go-data-transfer v1.6.1-0.20210604151507-da2f4ddd460b
+	github.com/filecoin-project/go-fil-markets v1.5.0
 	github.com/filecoin-project/go-state-types v0.1.0
-	github.com/filecoin-project/go-storedcounter v0.0.0-20200421200003-1c99c62e8a5b
 	github.com/filecoin-project/lotus v1.5.2
 	github.com/ipfs/go-blockservice v0.1.4
 	github.com/ipfs/go-cid v0.0.7

@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/filecoin-project/go-commp-utils/pieceio/cario"
+	"github.com/filecoin-project/go-data-transfer/channelmonitor"
 	"github.com/filecoin-project/go-commp-utils/writer"
 	datatransfer "github.com/filecoin-project/go-data-transfer"
 	dt "github.com/filecoin-project/go-data-transfer/impl"
@@ -22,12 +22,12 @@ import (
 	"github.com/filecoin-project/go-fil-markets/shared"
 	"github.com/filecoin-project/go-fil-markets/storagemarket/impl/requestvalidation"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-storedcounter"
 	"github.com/filecoin-project/lotus/blockstore"
 	badgerbs "github.com/filecoin-project/lotus/blockstore/badger"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	//logger "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	graphsync "github.com/ipfs/go-graphsync/impl"
@@ -60,6 +60,10 @@ func main() {
 }
 
 func runTransfer(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	//logger.SetLogLevel("dt-impl", "debug")
+	//logger.SetLogLevel("dt-chanmon", "debug")
+	//logger.SetLogLevel("dt_graphsync", "debug")
+
 	var (
 		size = runenv.SizeParam("size")
 
@@ -103,13 +107,17 @@ func runTransfer(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	// instantiate the data transfer module.
 	// TODO make retry configurable.
 	retry := dtnet.RetryParameters(time.Second, 5*time.Minute, 15, 5)
+	dtRestartConfig := dt.ChannelRestartConfig(channelmonitor.Config{
+		RestartDebounce: 1 * time.Second,
+		RestartBackoff: 1 * time.Second,
+		MaxConsecutiveRestarts: 3,
+	})
 	mgr, err := dt.NewDataTransfer(
 		ds,
 		dir, // cid lists directory.
 		dtnet.NewFromLibp2pHost(host, retry),
 		gst.NewTransport(host.ID(), gs),
-		storedcounter.New(ds, datastore.NewKey("datatransfer")),
-		dt.PushChannelRestartConfig(time.Second*30, 10, 1024, 2*time.Minute, 3),
+		dtRestartConfig,
 	)
 	if err != nil {
 		return err
@@ -125,7 +133,7 @@ func runTransfer(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 			"sent":            state.Sent(),
 			"received":        state.Received(),
 			"queued":          state.Queued(),
-			"received count":  len(state.ReceivedCids()),
+			"received count":  state.ReceivedCidsLen(),
 			"total size":      state.TotalSize(),
 			"remote peer":     state.OtherPeer(),
 			"event message":   event.Message,
@@ -225,7 +233,7 @@ func runTransfer(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 				return fmt.Errorf("no in progress channel for ID %s", chID)
 			}
 
-			runenv.RecordMessage("channel state: %v", spew.Sdump(ch))
+			runenv.RecordMessage("channel state: %s (sent %d)", datatransfer.Statuses[ch.Status()], ch.Sent())
 			switch ch.Status() {
 			case datatransfer.Ongoing:
 				continue // all ok, keep going!
@@ -382,11 +390,11 @@ func CreatePayload(bs blockstore.Blockstore, size uint64) (cid.Cid, error) {
 
 type OKValidator struct{}
 
-func (v *OKValidator) ValidatePush(peer.ID, datatransfer.Voucher, cid.Cid, ipld.Node) (datatransfer.VoucherResult, error) {
+func (v *OKValidator) ValidatePush(bool, peer.ID, datatransfer.Voucher, cid.Cid, ipld.Node) (datatransfer.VoucherResult, error) {
 	return nil, nil
 }
 
-func (v *OKValidator) ValidatePull(peer.ID, datatransfer.Voucher, cid.Cid, ipld.Node) (datatransfer.VoucherResult, error) {
+func (v *OKValidator) ValidatePull(bool, peer.ID, datatransfer.Voucher, cid.Cid, ipld.Node) (datatransfer.VoucherResult, error) {
 	return nil, nil
 }
 

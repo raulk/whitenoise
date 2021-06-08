@@ -8,6 +8,7 @@ import (
 	mrand "math/rand"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/filecoin-project/go-fil-markets/storagemarket/impl/requestvalidation"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/blockstore"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
 	badgerbs "github.com/filecoin-project/lotus/blockstore/badger"
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/ipfs/go-blockservice"
@@ -66,8 +68,8 @@ func runTransfer(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 
 	var (
 		size = runenv.SizeParam("size")
-
 		interrupt = runenv.StringParam("interrupt")
+		inmembstore = runenv.BooleanParam("inmembstore")
 		linkshape *network.LinkShape
 	)
 
@@ -86,14 +88,14 @@ func runTransfer(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	// create the libp2p host.
 	host, _ := CreateHost(initCtx)
 
-	// create a blockstore -- right now this is badger, but we should be able to parametrize.
-	bs := CreateBlockstore(runenv)
+	// create a blockstore -- either badger (default) or in-memory
+	bs := CreateBlockstore(runenv, inmembstore)
 
 	// create graphsync.
+	lsys := storeutil.LinkSystemForBlockstore(bs)
 	gs := graphsync.New(context.Background(),
 		gsnet.NewFromLibp2pHost(host),
-		storeutil.LoaderForBlockstore(bs),
-		storeutil.StorerForBlockstore(bs),
+		lsys,
 	)
 
 	// create an ephemeral datastore.
@@ -296,7 +298,20 @@ func interruptorLoop(rate string, host host.Host, other *peer.AddrInfo) {
 	}
 }
 
-func CreateBlockstore(runenv *runtime.RunEnv) blockstore.Blockstore {
+func CreateBlockstore(runenv *runtime.RunEnv, inmembstore bool) bstore.Blockstore {
+	// If the blockstore is in-memory
+	if inmembstore {
+		// Disable Garbage Collection
+		debug.SetGCPercent(-1)
+
+		// Create the blockstore in-memory
+		runenv.RecordMessage("creating in-memory blockstore")
+		dstore := dssync.MutexWrap(datastore.NewMapDatastore())
+		return bstore.NewBlockstore(dstore)
+	}
+
+	// Create a badger blockstore
+	runenv.RecordMessage("creating badger blockstore")
 	bsPath := filepath.Join(runenv.TestTempPath, "badger")
 	opts, err := repo.BadgerBlockstoreOptions(repo.HotBlockstore, bsPath, false)
 	if err != nil {
@@ -372,7 +387,7 @@ func FindOther(runenv *runtime.RunEnv, initCtx *run.InitContext, host host.Host)
 	return peers[0]
 }
 
-func CreatePayload(bs blockstore.Blockstore, size uint64) (cid.Cid, error) {
+func CreatePayload(bs bstore.Blockstore, size uint64) (cid.Cid, error) {
 	var (
 		bserv = blockservice.New(bs, nil)
 		dserv = merkledag.NewDAGService(bserv)

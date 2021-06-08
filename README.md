@@ -18,7 +18,7 @@ network traffic shaping configurations.
 ```shell
 $ git clone https://github.com/raulk/whitenoise
 $ cd whitenoise
-$ testground plan import --name=whitenoise ./testplan
+$ testground plan import --name=whitenoise --from=./testplan
 $ testground run c -f ./_compositions/basic.toml --wait --collect
 ```
 

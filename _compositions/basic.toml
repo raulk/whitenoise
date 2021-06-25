@@ -5,17 +5,18 @@
   plan = "whitenoise"
   case = "transfer"
   total_instances = 2
-  builder = "exec:go"
-  runner = "local:exec"
+  builder = "docker:go"
+  runner = "local:docker"
 
   [global.run]
-  profiles = { cpu = "true", heap = "5s" }
+  profiles = { cpu = "true", heap = "5s", goroutine = "5s" }
 
 [[groups]]
   id = "sender"
   instances = { count = 1 }
   [groups.run.test_params]
-    size = "4GiB"
+    size = "1GiB"
+    net = '{ "latency": "50ms" }'
 
 [[groups]]
   id = "receiver"

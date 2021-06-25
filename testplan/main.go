@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-commp-utils/pieceio/cario"
-	"github.com/filecoin-project/go-data-transfer/channelmonitor"
 	"github.com/filecoin-project/go-commp-utils/writer"
 	datatransfer "github.com/filecoin-project/go-data-transfer"
+	"github.com/filecoin-project/go-data-transfer/channelmonitor"
 	dt "github.com/filecoin-project/go-data-transfer/impl"
 	dtnet "github.com/filecoin-project/go-data-transfer/network"
 	gst "github.com/filecoin-project/go-data-transfer/transport/graphsync"
@@ -27,7 +27,7 @@ import (
 	"github.com/filecoin-project/lotus/node/repo"
 	"github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
-	//logger "github.com/ipfs/go-log/v2"
+	// logger "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	graphsync "github.com/ipfs/go-graphsync/impl"
@@ -108,8 +108,8 @@ func runTransfer(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	// TODO make retry configurable.
 	retry := dtnet.RetryParameters(time.Second, 5*time.Minute, 15, 5)
 	dtRestartConfig := dt.ChannelRestartConfig(channelmonitor.Config{
-		RestartDebounce: 1 * time.Second,
-		RestartBackoff: 1 * time.Second,
+		RestartDebounce:        1 * time.Second,
+		RestartBackoff:         1 * time.Second,
 		MaxConsecutiveRestarts: 3,
 	})
 	mgr, err := dt.NewDataTransfer(
@@ -176,9 +176,10 @@ func runTransfer(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	// set the link shape if one was provided.
 	if linkshape != nil {
 		initCtx.NetClient.MustConfigureNetwork(ctx, &network.Config{
-			Network: "default",
-			Enable:  true,
-			Default: *linkshape,
+			Network:       "default",
+			Enable:        true,
+			Default:       *linkshape,
+			CallbackState: "network-initialized",
 		})
 	}
 
